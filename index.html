@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat Encrypted</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            light: {
+              bg: '#d1d7db',
+              header: '#f0f2f5',
+              sidebar: '#ffffff',
+              incoming: '#ffffff',
+              outgoing: '#d9fdd3',
+              primary: '#00a884',
+              text: '#111b21',
+              textSec: '#667781',
+              input: '#f0f2f5',
+              border: '#e9edef'
+            },
+            dark: {
+              bg: '#0c1317', 
+              panel: '#111b21', 
+              header: '#202c33',
+              incoming: '#202c33',
+              outgoing: '#005c4b',
+              primary: '#00a884',
+              text: '#e9edef',
+              textSec: '#8696a0',
+              input: '#2a3942',
+              border: '#2a3942',
+              system: '#182229'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body { user-select: none; }
+    
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); }
+    .dark ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
+
+    .chat-bg-light {
+        background-color: #efeae2;
+        background-image: url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png");
+        opacity: 1;
+    }
+    .chat-bg-dark {
+        background-color: #0b141a;
+        background-image: url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png");
+        background-blend-mode: overlay;
+        opacity: 1;
+    }
+
+    .tail::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        width: 0;
+        height: 0;
+        border: 8px solid transparent;
+    }
+    .tail-out::after { right: -8px; border-left: 0; border-bottom: 0; }
+    .tail-in::after { left: -8px; border-right: 0; border-bottom: 0; }
+    
+    .tail-out-light::after { border-top-color: #d9fdd3; }
+    .tail-out-dark::after { border-top-color: #005c4b; }
+    .tail-in-light::after { border-top-color: #ffffff; }
+    .tail-in-dark::after { border-top-color: #202c33; }
+
+    @keyframes slideDown { from { transform: translateY(-100%); } to { transform: translateY(0); } }
+    .toast-anim { animation: slideDown 0.3s ease-out forwards; }
+    @keyframes zoomPfp { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .pfp-anim { animation: zoomPfp 0.2s ease-out forwards; }
+    @keyframes progress { from { width: 0%; } to { width: 100%; } }
+    .progress-bar { animation: progress 3s linear forwards; }
+  </style>
+</head>
+<body class="font-sans w-full h-screen overflow-hidden bg-light-bg dark:bg-dark-bg text-light-text dark:text-dark-text transition-colors duration-0" oncontextmenu="return false;">
+
+  <div id="custom-toast" class="hidden fixed top-8 left-1/2 transform -translate-x-1/2 z-[100] bg-red-600 text-white px-6 py-3 rounded-lg shadow-xl flex items-center gap-3 min-w-[320px] border border-red-400 toast-anim">
+      <i class="fas fa-lock text-xl"></i>
+      <div>
+          <h4 class="font-bold text-sm uppercase">Encrypted Mode</h4>
+          <p class="text-xs text-red-100">Sending messages & calls blocked.</p>
+      </div>
+  </div>
+
+  <div id="start-overlay" class="fixed inset-0 z-[200] bg-black flex flex-col items-center justify-center text-white cursor-pointer" onclick="enterGame()">
+      <div class="mb-6 relative">
+          <i class="fab fa-whatsapp text-7xl text-[#00a884]"></i>
+          <div class="absolute -bottom-2 -right-2 bg-red-600 text-[10px] px-2 py-0.5 rounded font-bold tracking-wider">ENCRYPTED</div>
+      </div>
+      <h1 class="text-3xl font-bold mb-2">Chat Encrypted</h1>
+      <p class="text-gray-400 mb-8 text-sm">Forensic Read-Only Mode.</p>
+      <div class="border border-[#00a884] text-[#00a884] hover:bg-[#00a884] hover:text-black transition px-6 py-2 rounded uppercase font-bold text-sm tracking-widest animate-pulse">
+          Click to Access
+      </div>
+  </div>
+
+  <div id="encrypted-banner" class="hidden fixed top-0 left-0 w-full h-6 bg-red-600 z-[90] flex items-center justify-center text-[10px] font-bold tracking-widest text-white shadow-md">
+      <i class="fas fa-lock mr-2"></i> CHAT ENCRYPTED - READ ONLY MODE <i class="fas fa-lock ml-2"></i>
+  </div>
+
+  <div class="flex h-full w-full relative overflow-hidden pt-6">
+    
+    <div id="column-1" class="w-full md:w-[450px] flex flex-col border-r border-light-border dark:border-dark-border relative z-10 bg-light-sidebar dark:bg-dark-panel h-full">
+      
+      <div class="bg-light-header dark:bg-dark-header px-4 py-2.5 flex justify-between items-center shrink-0">
+        <img src="public/imgs/status/my-status.jpg" onerror="this.src='https://ui-avatars.com/api/?name=Rahul&background=555&color=fff'" class="w-10 h-10 rounded-full cursor-pointer hover:opacity-80 transition" onclick="showPfp('https://ui-avatars.com/api/?name=Rahul&background=555&color=fff', 'Rahul')">
+        
+        <div class="flex gap-6 text-xl items-center text-light-textSec dark:text-dark-textSec">
+          <i class="fas fa-users cursor-pointer hover:text-light-text dark:hover:text-dark-text" title="Communities"></i>
+          <i class="fas fa-circle-notch cursor-pointer hover:text-light-text dark:hover:text-dark-text" onclick="switchTab('status')" title="Status"></i>
+          <i class="fas fa-comment-alt cursor-pointer hover:text-light-text dark:hover:text-dark-text" onclick="switchTab('chats')" title="New Chat"></i>
+          <div class="relative">
+             <i class="fas fa-ellipsis-v cursor-pointer hover:text-light-text dark:hover:text-dark-text px-2" onclick="toggleMenu('main-menu')"></i>
+             <div id="main-menu" class="hidden absolute right-0 top-10 bg-white dark:bg-dark-header shadow-lg rounded py-2 z-50 text-light-text dark:text-dark-text text-[14.5px] w-48 border border-light-border dark:border-dark-border origin-top-right">
+                <div class="hover:bg-light-header dark:hover:bg-dark-panel px-6 py-2.5 cursor-pointer">New group</div>
+                <div class="hover:bg-light-header dark:hover:bg-dark-panel px-6 py-2.5 cursor-pointer">Starred messages</div>
+                <div class="hover:bg-light-header dark:hover:bg-dark-panel px-6 py-2.5 cursor-pointer" onclick="toggleTheme()">Theme</div>
+                <div class="hover:bg-light-header dark:hover:bg-dark-panel px-6 py-2.5 cursor-pointer" onclick="openSettings()">Settings</div>
+                <div class="hover:bg-light-header dark:hover:bg-dark-panel px-6 py-2.5 cursor-pointer text-red-500" onclick="location.reload()">Log out</div>
+             </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-light-sidebar dark:bg-dark-panel p-2 border-b border-light-border dark:border-dark-border z-20">
+           <div class="bg-light-header dark:bg-dark-header rounded-lg flex items-center px-3 py-1.5">
+               <i class="fas fa-search text-light-textSec dark:text-dark-textSec text-sm mr-4 pl-2"></i>
+               <input id="search-input" onkeyup="filterChats()" type="text" placeholder="Search or start new chat" class="bg-transparent focus:outline-none text-[15px] w-full py-1 placeholder-light-textSec dark:placeholder-dark-textSec text-light-text dark:text-dark-text">
+               <i class="fas fa-filter text-light-textSec dark:text-dark-textSec text-sm ml-2 cursor-pointer"></i>
+           </div>
+      </div>
+
+      <div class="bg-light-sidebar dark:bg-dark-panel flex justify-between text-sm font-medium shrink-0 border-b border-light-border dark:border-dark-border">
+         <div id="tab-btn-chats" onclick="switchTab('chats')" class="flex-1 text-center py-3 cursor-pointer border-b-[3px] border-light-primary dark:border-dark-primary text-light-primary dark:text-dark-primary transition-all">Chats</div>
+         <div id="tab-btn-status" onclick="switchTab('status')" class="flex-1 text-center py-3 cursor-pointer border-b-[3px] border-transparent text-light-textSec dark:text-dark-textSec hover:text-light-text dark:hover:text-dark-text transition-all">Status</div>
+         <div id="tab-btn-calls" onclick="switchTab('calls')" class="flex-1 text-center py-3 cursor-pointer border-b-[3px] border-transparent text-light-textSec dark:text-dark-textSec hover:text-light-text dark:hover:text-dark-text transition-all">Calls</div>
+      </div>
+
+      <div class="flex-1 overflow-y-auto bg-light-sidebar dark:bg-dark-panel relative scrollbar-hide">
+        <div id="view-chats" class="block pb-2"></div>
+        
+        <div id="view-status" class="hidden pb-20">
+             <div class="flex items-center p-3 px-4 cursor-pointer hover:bg-light-header dark:hover:bg-dark-header" onclick="triggerBlock()">
+                <div class="relative">
+                    <img src="https://ui-avatars.com/api/?name=Rahul&background=555&color=fff" class="w-12 h-12 rounded-full object-cover">
+                    <div class="absolute bottom-0 right-0 bg-light-primary dark:bg-dark-primary border-2 border-white dark:border-dark-panel rounded-full w-5 h-5 flex items-center justify-center text-white text-[12px] font-bold">+</div>
+                </div>
+                <div class="ml-4">
+                    <div class="text-[17px] text-light-text dark:text-dark-text font-medium">My Status</div>
+                    <div class="text-[13px] text-light-textSec dark:text-dark-textSec">Click to add status update</div>
+                </div>
+             </div>
+             
+             <div class="text-light-primary dark:text-dark-primary text-[13px] font-medium px-4 py-3 uppercase">Recent updates</div>
+             <div class="flex items-center p-3 px-4 cursor-pointer hover:bg-light-header dark:hover:bg-dark-header" onclick="openStatus('Anju', 'public/imgs/friends/barakat.jpg', false)">
+                <img src="public/imgs/friends/barakat.jpg" class="w-12 h-12 rounded-full object-cover border-[2.5px] border-light-primary dark:border-dark-primary p-[1px]">
+                <div class="ml-4">
+                    <div class="text-[17px] text-light-text dark:text-dark-text font-medium">Anju</div>
+                    <div class="text-[13px] text-light-textSec dark:text-dark-textSec">Today, 10:23 AM</div>
+                </div>
+             </div>
+             <div class="text-light-textSec dark:text-dark-textSec text-[13px] font-medium px-4 py-3 uppercase mt-2">Viewed updates</div>
+             <div class="flex items-center p-3 px-4 cursor-pointer hover:bg-light-header dark:hover:bg-dark-header" onclick="openStatus('Professor James', 'public/imgs/friends/rinan.jpeg', true)">
+                <img src="public/imgs/friends/rinan.jpeg" class="w-12 h-12 rounded-full object-cover border-[2.5px] border-light-border dark:border-dark-border p-[1px]">
+                <div class="ml-4">
+                    <div class="text-[17px] text-light-text dark:text-dark-text font-medium">Professor James</div>
+                    <div class="text-[13px] text-light-textSec dark:text-dark-textSec">Yesterday, 11:30 PM</div>
+                </div>
+             </div>
+        </div>
+
+        <div id="view-calls" class="hidden pb-20">
+             <div class="flex items-center p-3 px-4 cursor-pointer hover:bg-light-header dark:hover:bg-dark-header mb-2" onclick="triggerBlock()">
+                <div class="w-12 h-12 rounded-full bg-light-primary dark:bg-dark-primary flex items-center justify-center text-white text-xl transform -rotate-45"><i class="fas fa-link"></i></div>
+                <div class="ml-4">
+                    <div class="text-[17px] text-light-text dark:text-dark-text font-medium">Create call link</div>
+                    <div class="text-[13px] text-light-textSec dark:text-dark-textSec">Share a link for your WhatsApp call</div>
+                </div>
+            </div>
+            <div class="text-light-text dark:text-dark-text text-[15px] font-medium px-4 py-2">Recent</div>
+            <div id="calls-list-container"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="column-2" class="hidden md:flex flex-col flex-1 h-full relative bg-light-bg dark:bg-dark-panel">
+      
+      <div id="default-screen" class="absolute inset-0 z-10 flex flex-col items-center justify-center bg-light-header dark:bg-dark-header border-b-[6px] border-light-primary dark:border-dark-primary">
+        <div class="text-center max-w-md">
+            <i class="fab fa-whatsapp text-[80px] text-gray-300 dark:text-gray-600 mb-6"></i>
+            <h1 class="text-3xl font-light text-light-text dark:text-dark-text mb-4">Chat Encrypted</h1>
+            <p class="text-sm text-light-textSec dark:text-dark-textSec leading-6">This session is currently in read-only mode for security analysis.<br>Sending messages and making calls are disabled.</p>
+            <div class="mt-12 text-xs text-light-textSec dark:text-dark-textSec flex items-center justify-center gap-2">
+                <i class="fas fa-lock text-[10px]"></i> End-to-end encrypted
+            </div>
+        </div>
+      </div>
+
+      <div id="chat-interface" class="flex flex-col h-full w-full hidden z-20">
+        
+        <div class="bg-light-header dark:bg-dark-header px-4 py-2.5 flex items-center justify-between shadow-sm shrink-0 border-l border-light-border dark:border-dark-border cursor-pointer z-20" onclick="toggleContactInfo()">
+          <div class="flex items-center">
+             <i class="fas fa-arrow-left text-light-textSec dark:text-dark-textSec mr-4 md:hidden" onclick="closeChat(event)"></i>
+             <img id="header-img" src="" class="w-10 h-10 rounded-full object-cover cursor-pointer hover:opacity-80 transition" onclick="showHeaderPfp(event)">
+             <div class="ml-4">
+               <div id="header-name" class="font-medium text-[16px] text-light-text dark:text-dark-text leading-tight">Name</div>
+               <div id="header-status" class="text-[13px] text-light-textSec dark:text-dark-textSec leading-tight mt-0.5 truncate max-w-[300px]">click here for contact info</div>
+             </div>
+          </div>
+          <div class="flex gap-6 text-light-textSec dark:text-dark-textSec text-xl pr-2" onclick="event.stopPropagation()">
+             <i class="fas fa-search cursor-pointer"></i>
+             <i class="fas fa-ellipsis-v cursor-pointer"></i>
+          </div>
+        </div>
+
+        <div id="messages-area" class="flex-1 overflow-y-auto p-4 relative flex flex-col gap-1 shadow-inner chat-bg-light dark:chat-bg-dark"></div>
+
+        <div class="px-4 py-3 bg-light-header dark:bg-dark-header flex items-center gap-3 z-30">
+           <i class="far fa-smile text-light-textSec dark:text-dark-textSec text-2xl cursor-pointer" onclick="triggerBlock()"></i>
+           <i class="fas fa-plus text-light-textSec dark:text-dark-textSec text-2xl cursor-pointer" onclick="triggerBlock()"></i>
+           <div class="flex-1 bg-white dark:bg-dark-input rounded-lg flex items-center px-4 py-2 shadow-sm">
+              <input id="msg-input" type="text" placeholder="Type a message" class="flex-1 bg-transparent focus:outline-none text-[15px] text-light-text dark:text-dark-text placeholder-light-textSec dark:placeholder-dark-textSec" onkeypress="handleEnter(event)">
+           </div>
+           <i class="fas fa-microphone text-light-textSec dark:text-dark-textSec text-xl cursor-pointer" onclick="triggerBlock()"></i>
+        </div>
+      </div>
+
+      <div id="contact-info-panel" class="absolute top-0 right-0 w-[0px] h-full bg-light-header dark:bg-dark-panel shadow-xl z-40 overflow-hidden transition-all duration-300 flex flex-col border-l border-light-border dark:border-dark-border">
+          <div class="bg-light-header dark:bg-dark-header px-4 py-4 flex items-center shrink-0 shadow-sm text-light-text dark:text-dark-text h-[60px]">
+              <i class="fas fa-times text-lg cursor-pointer mr-6" onclick="toggleContactInfo()"></i>
+              <div class="font-medium text-[16px]">Contact Info</div>
+          </div>
+          <div class="flex-1 overflow-y-auto bg-light-sidebar dark:bg-dark-panel mb-2 shadow-sm p-6 flex flex-col items-center text-center">
+              <img id="info-img" src="" class="w-48 h-48 rounded-full object-cover mb-4 shadow-md cursor-pointer hover:opacity-90 transition" onclick="showHeaderPfp(event)">
+              <div id="info-name" class="text-2xl font-normal text-light-text dark:text-dark-text mb-1">Name</div>
+              <div id="info-phone" class="text-light-textSec dark:text-dark-textSec text-lg mb-4">+91 98765 43210</div>
+              
+              <div class="w-full text-left mt-4 border-t border-light-border dark:border-dark-border pt-4">
+                  <div class="text-[14px] text-light-primary dark:text-dark-primary font-medium mb-1 uppercase" id="info-label">About</div>
+                  <div id="info-content" class="text-[16px] text-light-text dark:text-dark-text">Available</div>
+              </div>
+
+              <div class="w-full mt-6 space-y-4 text-left border-t border-light-border dark:border-dark-border pt-4 text-[15px]">
+                  <div class="flex items-center gap-4 text-light-textSec dark:text-dark-textSec cursor-pointer hover:text-light-text dark:hover:text-dark-text p-2 rounded" onclick="triggerBlock()"><i class="fas fa-bell w-5"></i> Mute notifications</div>
+                  <div class="flex items-center gap-4 text-light-textSec dark:text-dark-textSec cursor-pointer hover:text-light-text dark:hover:text-dark-text p-2 rounded" onclick="triggerBlock()"><i class="fas fa-star w-5"></i> Starred messages</div>
+                  <div class="flex items-center gap-4 text-red-500 cursor-pointer hover:text-red-600 p-2 rounded" onclick="triggerBlock()"><i class="fas fa-ban w-5"></i> Block contact</div>
+                  <div class="flex items-center gap-4 text-red-500 cursor-pointer hover:text-red-600 p-2 rounded" onclick="triggerBlock()"><i class="fas fa-thumbs-down w-5"></i> Report contact</div>
+              </div>
+          </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="pfp-modal" class="fixed inset-0 bg-black/85 z-[100] hidden flex items-center justify-center pfp-anim" onclick="closePfp()">
+      <div class="relative bg-transparent max-w-md w-full flex flex-col items-center p-4">
+          <div class="w-full bg-white/10 backdrop-blur-md p-3 text-white flex justify-between items-center rounded-t-lg">
+             <span id="pfp-modal-name" class="font-medium pl-2">Name</span>
+             <i class="fas fa-times cursor-pointer p-2 hover:bg-white/20 rounded-full" onclick="closePfp()"></i>
+          </div>
+          <img id="pfp-modal-img" src="" class="w-full h-auto max-h-[80vh] object-contain bg-black rounded-b-lg shadow-2xl">
+      </div>
+  </div>
+
+  <div id="status-modal" class="fixed inset-0 bg-black z-[100] hidden flex flex-col items-center justify-center">
+      <div class="absolute top-4 left-4 flex items-center gap-3 text-white z-50">
+          <i class="fas fa-arrow-left text-2xl cursor-pointer" onclick="closeStatus()"></i>
+          <img id="status-img-thumb" src="" class="w-10 h-10 rounded-full border border-white">
+          <div>
+              <div id="status-name" class="font-bold">Name</div>
+              <div class="text-xs opacity-80">Today, 10:23 AM</div>
+          </div>
+      </div>
+      <div class="absolute top-2 left-0 w-full px-2 flex gap-1">
+          <div class="h-1 bg-gray-500 rounded flex-1 overflow-hidden"><div class="h-full bg-white progress-bar"></div></div>
+      </div>
+      <img id="status-img-main" src="" class="max-h-[90vh] max-w-[90vw] object-contain">
+      <div class="absolute bottom-10 text-white text-sm font-medium flex flex-col items-center animate-bounce cursor-pointer" onclick="triggerBlock()">
+          <i class="fas fa-chevron-up"></i>
+          <span>Reply</span>
+      </div>
+  </div>
+
+  <div id="settings-modal" class="fixed inset-0 bg-light-sidebar dark:bg-dark-bg z-[50] hidden flex flex-col animate-[zoomPfp_0.2s_ease-out]">
+      <div class="bg-light-primary dark:bg-dark-primary h-28 flex items-end p-5 text-white">
+          <div class="flex items-center gap-4 mb-1">
+              <i class="fas fa-arrow-left text-xl cursor-pointer" onclick="closeSettings()"></i>
+              <div class="text-xl font-medium">Settings</div>
+          </div>
+      </div>
+      <div class="flex-1 overflow-y-auto bg-light-header dark:bg-dark-bg p-4">
+          <div class="bg-light-sidebar dark:bg-dark-panel p-4 flex items-center gap-4 rounded-lg shadow-sm mb-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800" onclick="showPfp('https://ui-avatars.com/api/?name=Rahul&background=555&color=fff', 'Rahul')">
+              <img src="https://ui-avatars.com/api/?name=Rahul&background=555&color=fff" class="w-20 h-20 rounded-full">
+              <div>
+                  <div class="text-xl text-light-text dark:text-dark-text">Rahul</div>
+                  <div class="text-sm text-light-textSec dark:text-dark-textSec mt-1">Chemistry & Coffee ☕ | 🏳️‍🌈</div>
+              </div>
+          </div>
+          <div class="bg-light-sidebar dark:bg-dark-panel rounded-lg shadow-sm overflow-hidden text-light-text dark:text-dark-text">
+              <div class="p-4 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer flex items-center gap-4 border-b border-light-border dark:border-dark-border" onclick="toggleTheme()"><i class="fas fa-adjust text-gray-400 w-6"></i><div class="flex-1"><div class="text-[17px]">Theme</div><div class="text-[14px] text-light-textSec dark:text-dark-textSec">Switch Light/Dark Mode</div></div></div>
+              <div class="p-4 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer flex items-center gap-4 border-b border-light-border dark:border-dark-border" onclick="triggerBlock()"><i class="fas fa-key text-gray-400 w-6"></i><div class="flex-1"><div class="text-[17px]">Account</div><div class="text-[14px] text-light-textSec dark:text-dark-textSec">Security notifications</div></div></div>
+              <div class="p-4 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer flex items-center gap-4 border-b border-light-border dark:border-dark-border" onclick="triggerBlock()"><i class="fas fa-lock text-gray-400 w-6"></i><div class="flex-1"><div class="text-[17px]">Privacy</div><div class="text-[14px] text-light-textSec dark:text-dark-textSec">Block contacts</div></div></div>
+              <div class="p-4 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer flex items-center gap-4 border-b border-light-border dark:border-dark-border" onclick="triggerBlock()"><i class="far fa-comment-alt text-gray-400 w-6"></i><div class="flex-1"><div class="text-[17px]">Chats</div><div class="text-[14px] text-light-textSec dark:text-dark-textSec">Theme, wallpapers</div></div></div>
+              <div class="p-4 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer flex items-center gap-4"><i class="far fa-question-circle text-gray-400 w-6"></i><div class="flex-1"><div class="text-[17px]">Help</div><div class="text-[14px] text-light-textSec dark:text-dark-textSec">Help center, contact us</div></div></div>
+          </div>
+      </div>
+  </div>
+
+  <script>
+    let currentChatId = null;
+
+    /* --- SECURITY --- */
+    function triggerBlock() {
+        const toast = document.getElementById('custom-toast');
+        toast.classList.remove('hidden');
+        setTimeout(() => toast.classList.add('hidden'), 3000);
+    }
+
+    function enterGame() {
+        document.getElementById('start-overlay').classList.add('hidden');
+        document.getElementById('encrypted-banner').classList.remove('hidden');
+        if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+    }
+    
+    document.addEventListener('fullscreenchange', () => {
+        if (!document.fullscreenElement) {
+            document.getElementById('start-overlay').classList.remove('hidden');
+            document.getElementById('encrypted-banner').classList.add('hidden');
+        }
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'F11' || e.key === 'F12' || (e.ctrlKey && (e.key === 'u' || e.key === 'I'))) e.preventDefault();
+        if (e.key === 'End') {
+            if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+            else document.exitFullscreen();
+        }
+    });
+
+    /* --- DATA --- */
+    const chatData = {
+      'amma': {
+        name: 'Amma',
+        img: 'public/imgs/friends/unknown-contact.png',
+        about: 'Busy',
+        unread: 2,
+        messages: [
+          { date: '2 Days Ago', side: 'in', text: 'Rahul, when are you coming home?', time: '04:30 PM' },
+          { date: '2 Days Ago', side: 'in', text: 'Buy 1kg Sambar powder on the way.', time: '04:31 PM' },
+          { date: '2 Days Ago', side: 'out', text: 'I will be late Amma. I am with Chemistry Sir in the lab.', time: '04:45 PM', status: 'read' },
+          { date: '2 Days Ago', side: 'out', text: 'Clearing some doubts for the project.', time: '04:45 PM', status: 'read' },
+          { date: 'Yesterday', side: 'in', text: 'Come home early today. Geetha Auntie and cousins are here.', time: '05:00 PM' },
+          { date: 'Yesterday', side: 'out', text: 'Ok Amma.', time: '05:10 PM', status: 'read' },
+          { date: 'Today', side: 'in', text: 'Vickie told me you borrowed his bike.', time: '10:00 AM' },
+          { date: 'Today', side: 'in', text: 'Why do you need a bike? You usually take the bus.', time: '10:01 AM' },
+          { date: 'Today', side: 'in', text: 'Are you seeing someone? You have been acting strange lately.', time: '10:05 AM' }
+        ]
+      },
+      'vickie': {
+        name: 'Vickie',
+        img: 'https://ui-avatars.com/api/?name=Vickie&background=ffcc00',
+        about: 'Gym is Life 💪',
+        unread: 1,
+        messages: [
+            { date: '5 Days Ago', side: 'out', text: 'Bro, can I borrow your bike?', time: '06:00 PM' },
+            { date: '5 Days Ago', side: 'in', text: 'Sorry man, I am not at home right now.', time: '06:15 PM' },
+            { date: '3 Days Ago', side: 'out', text: 'Bro, is the bike available today?', time: '10:00 AM' },
+            { date: '3 Days Ago', side: 'in', text: 'Nah, it is in the workshop for service.', time: '10:30 AM' },
+            { date: 'Today', side: 'out', text: 'Bro, really need the bike now. Is it back?', time: '09:00 AM' },
+            { date: 'Today', side: 'in', text: 'Yeah, it is back. Keys are on the window sill. Take it.', time: '09:05 AM' },
+            { date: 'Today', side: 'out', text: 'Thanks!', time: '09:06 AM', status: 'read' },
+            { date: 'Today', side: 'out', text: 'Bro, did you tell Amma I took the bike? She asked me.', time: '12:30 PM' },
+            { date: 'Today', side: 'in', text: 'No bro, I didn\'t say anything. Maybe she saw you taking it?', time: '12:45 PM' }
+        ]
+      },
+      'anju': {
+        name: 'Anju ❤️',
+        img: 'public/imgs/friends/barakat.jpg',
+        about: 'Live Laugh Love ✨',
+        unread: 1,
+        messages: [
+          { date: 'Last Week', side: 'in', text: 'Hey, did you buy the gift for Grandma?', time: '10:00 AM' },
+          { date: 'Last Week', side: 'out', text: 'Not yet. I will buy a Saree tomorrow.', time: '10:30 AM', status: 'read' },
+          { date: '5 Days Ago', side: 'in', text: 'Btw, are you free this weekend?', time: '04:00 PM' },
+          { date: '5 Days Ago', side: 'out', text: 'Maybe. Why? What\'s up?', time: '04:05 PM', status: 'read' },
+          { date: '5 Days Ago', side: 'in', text: 'Come over? Mom is making Biryani.', time: '04:10 PM' },
+          { date: '5 Days Ago', side: 'out', text: 'Biryani? I am on my way!', time: '04:15 PM', status: 'read' },
+          { date: '4 Days Ago', side: 'out', text: 'Reached home. Thanks for the food.', time: '09:00 AM', status: 'read' },
+          { date: '4 Days Ago', side: 'in', text: 'You forgot your charger here idiot.', time: '09:15 AM' },
+          { date: '3 Days Ago', side: 'in', text: 'Did you tell them yet?', time: '02:00 PM' },
+          { date: '3 Days Ago', side: 'out', text: 'Tell who what?', time: '02:05 PM', status: 'read' },
+          { date: '3 Days Ago', side: 'in', text: 'About the Goa plan? My dad was asking.', time: '02:10 PM' },
+          { date: 'Yesterday', side: 'in', text: 'Hey! Are we still on for the movies tomorrow?', time: '05:00 PM' },
+          { date: 'Yesterday', side: 'out', text: 'Hey Anju. Sorry, I\'m really swamped with the Chemistry project.', time: '05:30 PM', status: 'read' },
+          { date: 'Yesterday', side: 'in', text: 'Serious question though. Is there someone else?', time: '08:00 PM' },
+          { date: 'Yesterday', side: 'in', text: 'You\'ve been acting weird. Late night drives?', time: '08:01 PM' },
+          { date: 'Today', side: 'in', text: 'Are you coming home today? Mom is asking.', time: '10:00 AM' }
+        ]
+      },
+      'james': {
+        name: 'Professor James',
+        img: 'public/imgs/friends/rinan.jpeg', 
+        about: 'Faculty of Chemistry | Ph.D. Organic Synth',
+        unread: 0,
+        messages: [
+            { date: 'Monday', side: 'in', text: 'Rahul, please submit the assignment by Monday.', time: '09:00 AM' },
+            { date: 'Monday', side: 'out', text: 'Yes Sir. I am almost done.', time: '09:15 AM', status: 'read' },
+            { date: 'Monday', side: 'in', text: 'Good. And Rahul?', time: '09:16 AM' },
+            { date: 'Monday', side: 'in', text: 'Stop calling me Sir when we are texting.', time: '09:17 AM' },
+            { date: 'Monday', side: 'out', text: 'Sorry... James.', time: '09:20 AM', status: 'read' },
+            { date: 'Yesterday', side: 'in', text: 'You left your blue hoodie in my cabin.', time: '08:00 PM' },
+            { date: 'Yesterday', side: 'out', text: 'Oh god. I looked everywhere for it.', time: '08:15 PM', status: 'read' },
+            { date: 'Yesterday', side: 'in', text: 'I kept it safe. It smells nice.', time: '08:30 PM' },
+            { date: 'Yesterday', side: 'in', text: 'Like you.', time: '08:31 PM' },
+            { date: 'Yesterday', side: 'out', text: '😳 Thanks James.', time: '08:35 PM', status: 'read' }
+        ]
+      },
+      'olivia': { name: 'Olivia Miss', img: 'https://ui-avatars.com/api/?name=Olivia&background=pink&color=fff', about: 'English Dept', unread: 0, messages: [{date:'Today', side:'in', text:'Don\'t forget the poem summary.', time:'08:00 AM'}] },
+      'chikki': { name: 'Chikki', img: 'public/imgs/friends/chikki.jpg', about: 'Coding', unread: 0, messages: [{date:'Today', side:'in', text:'Bro?', time:'10:00 AM'}] },
+      'riya': { name: 'Riya', img: 'https://ui-avatars.com/api/?name=Riya&background=pink', about: 'CR', unread: 0, messages: [{date:'Yesterday', side:'in', text:'Notes?', time:'04:00 PM'}] },
+      'karthik': { name: 'Karthik', img: 'https://ui-avatars.com/api/?name=Karthik&background=random', about: 'Ball is life', unread: 0, messages: [{date:'Today', side:'in', text:'Match?', time:'07:00 AM'}] },
+      'mechGroup': { name: 'S5 Mechanical', img: 'public/imgs/friends/pharaohs.jpg', isGroup: true, unread: 0, members:['You','Rohit'], messages: [{date:'Today', side:'in', text:'Class cancelled', sender:'Rohit', time:'08:00 AM'}] },
+      'family': { name: 'Menon Family', img: 'public/imgs/friends/agric-group.jpg', isGroup: true, unread: 0, members:['You','Mom','Dad','Anju'], messages: [{date:'Today', side:'in', text:'Good morning', sender:'Dad', time:'06:00 AM'}] },
+      'amazon': { name: 'Amazon', img: 'public/imgs/friends/teslim.jpg', about: 'Official', unread: 0, messages: [{date:'Today', side:'in', text:'Out for delivery', time:'09:00 AM'}] }
+    };
+
+    /* --- RENDER CHAT LIST --- */
+    function renderChatList(filter = '') {
+        const container = document.getElementById('view-chats');
+        let html = '';
+        const keys = ['anju', 'vickie', 'amma', 'olivia', 'james', 'riya', 'chikki', 'karthik', 'mechGroup', 'family', 'amazon'];
+
+        keys.forEach(key => {
+            const data = chatData[key];
+            if (!data || !data.name.toLowerCase().includes(filter)) return;
+            const lastMsg = data.messages[data.messages.length - 1];
+            const fallback = `this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(data.name)}&background=random'`;
+            
+            let badgeHtml = data.unread > 0 ? `<div class="bg-light-primary dark:bg-dark-primary text-white text-[10px] h-5 w-5 flex items-center justify-center rounded-full font-bold animate-pulse">${data.unread}</div>` : '';
+            let msgPreview = lastMsg.text;
+            let iconHtml = '';
+            if(lastMsg.side === 'out') {
+                iconHtml = '<i class="fas fa-check-double text-blue-400 text-[10px] mr-1"></i>';
+            }
+
+            html += `
+            <div onclick="loadChat('${key}')" class="flex items-center p-3 px-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-dark-header border-b border-light-border dark:border-dark-border group relative h-[72px]">
+              <div class="relative group/img">
+                  <img src="${data.img}" onerror="${fallback}" class="w-12 h-12 rounded-full object-cover mr-4 hover:opacity-80 transition" onclick="showPfp('${data.img}', '${data.name}', event)">
+              </div>
+              <div class="flex-1 min-w-0 pr-2">
+                <div class="flex justify-between items-baseline mb-1">
+                  <span class="text-[17px] text-light-text dark:text-dark-text truncate font-medium">${data.name}</span>
+                  <span class="text-[12px] text-light-textSec dark:text-dark-textSec">${lastMsg.time}</span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-[14px] text-light-textSec dark:text-dark-textSec truncate flex-1 flex items-center">
+                    ${iconHtml} <span class="truncate">${msgPreview}</span>
+                  </span>
+                  ${badgeHtml}
+                </div>
+              </div>
+            </div>`;
+        });
+        container.innerHTML = html;
+        renderCallLog();
+    }
+
+    function renderCallLog() {
+        const callsContainer = document.getElementById('calls-list-container');
+        const calls = [
+            {name: 'Anju ❤️', time: 'Today, 09:30 AM', icon: 'fas fa-arrow-down', color: 'text-red-500', type: 'video', dur: 'Missed'},
+            {name: 'Amma', time: 'Yesterday, 08:51 PM', icon: 'fas fa-arrow-down', color: 'text-red-500', type: 'phone', dur: '(2)'},
+            {name: 'Chikki', time: 'Yesterday, 10:05 PM', icon: 'fas fa-arrow-up', color: 'text-green-500', type: 'video', dur: '5:23 min'},
+            {name: 'Anju ❤️', time: '4 Days Ago', icon: 'fas fa-arrow-down', color: 'text-red-500', type: 'video', dur: 'Missed'},
+            {name: 'Professor James', time: 'Last Week', icon: 'fas fa-arrow-up', color: 'text-green-500', type: 'phone', dur: '12:04 min'},
+        ];
+
+        let html = '';
+        calls.forEach(c => {
+            let img = 'https://ui-avatars.com/api/?name=User&background=random';
+            for (const key in chatData) { if (chatData[key].name === c.name) { img = chatData[key].img; break; } }
+            html += `
+            <div class="flex items-center p-3 px-4 hover:bg-gray-100 dark:hover:bg-dark-header border-b border-light-border dark:border-dark-border" onclick="triggerBlock()">
+                <img src="${img}" class="w-12 h-12 rounded-full object-cover mr-4">
+                <div class="flex-1">
+                    <div class="text-[17px] text-light-text dark:text-dark-text font-medium">${c.name}</div>
+                    <div class="text-[13px] text-light-textSec dark:text-dark-textSec flex items-center gap-1">
+                        <i class="${c.icon} ${c.color} rotate-45 text-[10px]"></i> ${c.time}
+                        <span class="ml-2 text-xs opacity-70">${c.dur}</span>
+                    </div>
+                </div>
+                <i class="fas fa-${c.type} text-light-textSec dark:text-dark-textSec text-lg"></i>
+            </div>`;
+        });
+        callsContainer.innerHTML = html;
+    }
+
+    function loadChat(key) {
+        currentChatId = key;
+        const data = chatData[key];
+        data.unread = 0; 
+        renderChatList();
+
+        document.getElementById('column-1').classList.add('hidden', 'md:flex');
+        const col2 = document.getElementById('column-2');
+        col2.classList.remove('hidden');
+        col2.classList.add('flex', 'w-full');
+
+        document.getElementById('default-screen').classList.add('hidden');
+        document.getElementById('chat-interface').classList.remove('hidden');
+        document.getElementById('chat-interface').classList.add('flex');
+        document.getElementById('contact-info-panel').style.width = '0px';
+
+        document.getElementById('header-name').innerText = data.name;
+        
+        let statusText = 'click here for contact info';
+        if(data.isGroup) statusText = data.members.map(m => m).join(', ').substring(0, 40) + '...';
+        else if(data.messages.length > 5) statusText = 'Online';
+        document.getElementById('header-status').innerText = statusText;
+        
+        const img = document.getElementById('header-img');
+        img.src = data.img;
+        img.onerror = function() { this.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name)}&background=random`; };
+
+        const area = document.getElementById('messages-area');
+        area.innerHTML = `
+             <div class="flex justify-center my-4">
+                 <div class="bg-[#ffd279] dark:bg-dark-system text-gray-800 dark:text-[#ffd279] text-[10px] px-3 py-1.5 rounded-lg shadow-sm flex items-center gap-2 max-w-[90%] text-center leading-tight">
+                   <i class="fas fa-lock text-[8px]"></i> Messages and calls are end-to-end encrypted. No one outside of this chat, not even WhatsApp, can read or listen to them.
+                 </div>
+            </div>
+        `;
+
+        let lastDate = '';
+        data.messages.forEach(msg => {
+            // DATE SEPARATOR LOGIC (THE BOXES)
+            if(msg.date !== lastDate) {
+               area.innerHTML += `
+               <div class="flex justify-center mb-3 sticky top-2 z-10">
+                   <span class="bg-white dark:bg-dark-header shadow-sm text-light-textSec dark:text-dark-textSec text-[12.5px] px-3 py-1 rounded-lg font-medium uppercase tracking-wide border border-light-border dark:border-dark-border">${msg.date}</span>
+               </div>`;
+               lastDate = msg.date;
+            }
+
+            let content = '';
+            if(msg.type === 'call') {
+                 content = `<div class="flex justify-center my-2"><div class="bg-white dark:bg-dark-header p-2 px-4 rounded-lg shadow-sm flex items-center gap-3 cursor-pointer text-sm text-light-text dark:text-dark-text"><div class="bg-gray-100 dark:bg-dark-bg p-2 rounded-full"><i class="fas fa-phone-slash text-red-500"></i></div><div><div class="font-medium">Missed ${msg.text.includes('video')?'video':''} call</div></div></div></div>`;
+            } else if (msg.side === 'out') {
+                content = `<div class="self-end max-w-[65%] group mb-1 animate-[zoomPfp_0.1s]"><div class="bg-light-outgoing dark:bg-dark-outgoing p-1.5 px-2 rounded-lg rounded-tr-none shadow-[0_1px_0.5px_rgba(0,0,0,0.13)] text-[14.2px] text-light-text dark:text-dark-text relative leading-snug tail-out tail-out-light dark:tail-out-dark">${msg.text}<div class="text-[11px] text-gray-500 dark:text-gray-300 text-right mt-1 -mb-1 float-right pl-2 flex items-center h-4"><span class="mr-1">${msg.time}</span> <i class="fas fa-check-double text-blue-500 dark:text-tealDark text-[10px]"></i></div></div></div>`;
+            } else {
+                const senderHtml = (data.isGroup && msg.sender) ? `<div class="text-[13px] font-bold text-orange-500 mb-0.5 cursor-pointer hover:underline">${msg.sender}</div>` : '';
+                content = `<div class="self-start max-w-[65%] group mb-1 animate-[zoomPfp_0.1s]"><div class="bg-light-incoming dark:bg-dark-incoming p-1.5 px-2 rounded-lg rounded-tl-none shadow-[0_1px_0.5px_rgba(0,0,0,0.13)] text-[14.2px] text-light-text dark:text-dark-text relative leading-snug tail-in tail-in-light dark:tail-in-dark">${senderHtml}${msg.text}<div class="text-[11px] text-gray-500 dark:text-dark-textSec text-right mt-1 -mb-1 float-right pl-2 flex items-center h-4"><span>${msg.time}</span></div></div></div>`;
+            }
+            area.innerHTML += content;
+        });
+        area.scrollTop = area.scrollHeight;
+    }
+
+    /* --- UTILS --- */
+    function showPfp(img, name, e) { if(e) e.stopPropagation(); document.getElementById('pfp-modal').classList.remove('hidden'); document.getElementById('pfp-modal').classList.add('flex'); document.getElementById('pfp-modal-img').src = img; document.getElementById('pfp-modal-name').innerText = name; }
+    function closePfp() { document.getElementById('pfp-modal').classList.add('hidden'); document.getElementById('pfp-modal').classList.remove('flex'); }
+    function openStatus(name, img, isViewed) { document.getElementById('status-modal').classList.remove('hidden'); document.getElementById('status-name').innerText = name; document.getElementById('status-img-main').src = img; document.getElementById('status-img-thumb').src = img; setTimeout(() => document.getElementById('status-modal').classList.add('hidden'), 3000); }
+    function closeStatus() { document.getElementById('status-modal').classList.add('hidden'); }
+    function openSettings() { document.getElementById('settings-modal').classList.remove('hidden'); document.getElementById('main-menu').classList.add('hidden'); }
+    function closeSettings() { document.getElementById('settings-modal').classList.add('hidden'); }
+    function toggleMenu(id) { document.getElementById(id).classList.toggle('hidden'); }
+    function handleEnter(e) { if(e.key === 'Enter') { triggerBlock(); e.target.value = ""; } }
+    function triggerBlock() { const t = document.getElementById('custom-toast'); t.classList.remove('hidden'); setTimeout(() => t.classList.add('hidden'), 3000); }
+    function closeChat(e) { if(e) e.stopPropagation(); document.getElementById('column-1').classList.remove('hidden', 'md:flex'); document.getElementById('column-2').classList.add('hidden'); document.getElementById('column-2').classList.remove('flex', 'w-full'); document.getElementById('default-screen').classList.remove('hidden'); document.getElementById('chat-interface').classList.add('hidden'); document.getElementById('contact-info-panel').style.width = '0px'; }
+    function switchTab(t) { ['chats','status','calls'].forEach(x => { document.getElementById(`tab-btn-${x}`).className = 'flex-1 text-center py-3 cursor-pointer tab-inactive transition-all'; document.getElementById(`view-${x}`).classList.add('hidden'); }); document.getElementById(`tab-btn-${t}`).className = 'flex-1 text-center py-3 cursor-pointer tab-active transition-all'; document.getElementById(`view-${t}`).classList.remove('hidden'); }
+    function toggleContactInfo() { const p = document.getElementById('contact-info-panel'); if(p.style.width === '350px') p.style.width = '0px'; else { if(!currentChatId) return; const d = chatData[currentChatId]; document.getElementById('info-name').innerText = d.name; document.getElementById('info-img').src = d.img; document.getElementById('info-label').innerText = d.isGroup ? 'Members' : 'About'; document.getElementById('info-content').innerHTML = d.isGroup ? d.members.map(m=>`<div class="py-2 border-b border-light-border dark:border-dark-border flex items-center text-sm"><img src="https://ui-avatars.com/api/?name=${m}&background=random" class="w-8 h-8 rounded-full mr-3"><span>${m}</span></div>`).join('') : (d.about || 'Available'); p.style.width = '350px'; } }
+    function filterChats() { const q = document.getElementById('search-input').value.toLowerCase(); renderChatList(q); }
+    function toggleTheme() { const h = document.documentElement; if(h.classList.contains('dark')) { h.classList.remove('dark'); localStorage.setItem('theme', 'light'); } else { h.classList.add('dark'); localStorage.setItem('theme', 'dark'); } document.getElementById('main-menu').classList.add('hidden'); }
+    function enterGame() { document.getElementById('start-overlay').classList.add('hidden'); document.getElementById('encrypted-banner').classList.remove('hidden'); if(document.documentElement.requestFullscreen) document.documentElement.requestFullscreen(); }
+    
+    document.addEventListener('contextmenu', e => e.preventDefault());
+    document.addEventListener('keydown', e => { if(e.key === 'F11' || e.key === 'F12' || (e.ctrlKey && (e.key === 'u' || e.key === 'I'))) e.preventDefault(); if(e.key === 'End') { if(!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); } if(e.key === 'Escape') { document.getElementById('start-overlay').classList.remove('hidden'); document.getElementById('encrypted-banner').classList.add('hidden'); } });
+    if(localStorage.getItem('theme')==='dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark');
+    renderChatList();
+  </script>
+</body>
+</html>
